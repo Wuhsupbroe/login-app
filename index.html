@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AuthApp</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- Animated background -->
+  <div class="bg-orbs">
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    <div class="orb orb-3"></div>
+  </div>
+
+  <!-- ── AUTH CONTAINER (shown when logged out) ───────────────────────────── -->
+  <div id="auth-container" class="container">
+
+    <!-- Login -->
+    <div id="login-view" class="card active">
+      <div class="logo">⚡</div>
+      <h1>Welcome back</h1>
+      <p class="subtitle">Sign in to your account</p>
+
+      <div id="login-error" class="error-msg hidden"></div>
+
+      <form id="login-form">
+        <div class="input-group">
+          <input type="email" id="login-email" placeholder="Email address" required autocomplete="email">
+        </div>
+        <div class="input-group">
+          <input type="password" id="login-password" placeholder="Password" required autocomplete="current-password">
+        </div>
+        <button type="submit" class="btn btn-primary" id="login-btn">
+          <span>Sign In</span>
+          <div class="spinner hidden"></div>
+        </button>
+      </form>
+
+      <p class="switch-text">Don't have an account? <a href="#" id="go-signup">Sign up</a></p>
+    </div>
+
+    <!-- Signup -->
+    <div id="signup-view" class="card">
+      <div class="logo">⚡</div>
+      <h1>Create account</h1>
+      <p class="subtitle">Join us today</p>
+
+      <div id="signup-error" class="error-msg hidden"></div>
+
+      <form id="signup-form">
+        <div class="input-group">
+          <input type="email" id="signup-email" placeholder="Email address" required autocomplete="email">
+        </div>
+        <div class="input-group">
+          <input type="password" id="signup-password" placeholder="Password (min 6 chars)" required minlength="6" autocomplete="new-password">
+        </div>
+        <div class="input-group">
+          <input type="password" id="signup-confirm" placeholder="Confirm password" required autocomplete="new-password">
+        </div>
+        <button type="submit" class="btn btn-primary" id="signup-btn">
+          <span>Create Account</span>
+          <div class="spinner hidden"></div>
+        </button>
+      </form>
+
+      <p class="switch-text">Already have an account? <a href="#" id="go-login">Sign in</a></p>
+    </div>
+
+  </div>
+
+  <!-- ── APP CONTAINER (shown when logged in) ─────────────────────────────── -->
+  <div id="app-container" class="hidden">
+
+    <nav class="navbar">
+      <div class="nav-brand">⚡ AuthApp</div>
+      <div class="nav-links">
+        <a href="#" id="nav-dashboard" class="nav-link active">Dashboard</a>
+        <a href="#" id="nav-admin" class="nav-link">Admin</a>
+        <button id="logout-btn" class="btn btn-ghost">Sign out</button>
+      </div>
+    </nav>
+
+    <!-- Dashboard -->
+    <div id="dashboard-view" class="page-content">
+      <div class="page-card">
+        <div class="success-icon">✓</div>
+        <h1>You have successfully logged in!</h1>
+        <p class="user-email-display" id="user-email-display"></p>
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-label">Account Status</div>
+            <div class="stat-value" style="color: var(--success)">Active</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Email Verified</div>
+            <div class="stat-value" id="verified-status">—</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Admin -->
+    <div id="admin-view" class="page-content">
+      <div class="page-card">
+        <h1>Admin Panel</h1>
+        <p class="subtitle">User registration overview</p>
+        <div class="admin-grid">
+          <div class="admin-stat-card">
+            <div class="admin-stat-number" id="total-users">—</div>
+            <div class="admin-stat-label">Total Registered Users</div>
+          </div>
+          <div class="admin-stat-card">
+            <div class="admin-stat-number admin-stat-date" id="latest-user">—</div>
+            <div class="admin-stat-label">Latest Signup</div>
+          </div>
+        </div>
+        <div id="users-list" class="users-list">
+          <div class="loading-text">Loading users…</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
