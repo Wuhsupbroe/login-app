@@ -11,12 +11,12 @@ import { getFirestore, doc, setDoc, collection,
 // TODO: Replace ALL placeholder values with your real Firebase project config.
 // See FIREBASE_SETUP.md for step-by-step instructions.
 const firebaseConfig = {
-  apiKey:            "YOUR_API_KEY",
-  authDomain:        "YOUR_PROJECT_ID.firebaseapp.com",
-  projectId:         "YOUR_PROJECT_ID",
-  storageBucket:     "YOUR_PROJECT_ID.appspot.com",
-  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-  appId:             "YOUR_APP_ID"
+  apiKey:            "AIzaSyDkrzifUy1sCGvuniL312Pp7Lh13Wt2DKI",
+  authDomain:        "login-app-b0f88.firebaseapp.com",
+  projectId:         "login-app-b0f88",
+  storageBucket:     "login-app-b0f88.firebasestorage.app",
+  messagingSenderId: "760154109686",
+  appId:             "1:760154109686:web:42670bf2f61ed599b89ed7"
 };
 // ───────────────────────────────────────────────────────────────────────────────
 
