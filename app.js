@@ -6,7 +6,7 @@ import { getAuth, createUserWithEmailAndPassword,
          signInWithPopup }                      from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 import { getFirestore, doc, setDoc, getDoc, collection,
          getDocs, serverTimestamp, getCountFromServer,
-         query, orderBy }                       from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+         query, orderBy, limit }                from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
 // ── FIREBASE CONFIG ─────────────────────────────────────────────────────────────
 const firebaseConfig = {
@@ -18,58 +18,56 @@ const firebaseConfig = {
   appId:             "1:760154109686:web:42670bf2f61ed599b89ed7"
 };
 
-const app      = initializeApp(firebaseConfig);
-const auth     = getAuth(app);
-const db       = getFirestore(app);
+const app       = initializeApp(firebaseConfig);
+const auth      = getAuth(app);
+const db        = getFirestore(app);
 const gProvider = new GoogleAuthProvider();
 
 // ── DOM refs ────────────────────────────────────────────────────────────────────
-const authContainer    = document.getElementById('auth-container');
-const appContainer     = document.getElementById('app-container');
+const authContainer     = document.getElementById('auth-container');
+const appContainer      = document.getElementById('app-container');
 const nicknameContainer = document.getElementById('nickname-container');
-const loginView        = document.getElementById('login-view');
-const signupView       = document.getElementById('signup-view');
-const loginError       = document.getElementById('login-error');
-const signupError      = document.getElementById('signup-error');
-const nicknameError    = document.getElementById('nickname-error');
-const loginForm        = document.getElementById('login-form');
-const signupForm       = document.getElementById('signup-form');
-const nicknameForm     = document.getElementById('nickname-form');
-const loginBtn         = document.getElementById('login-btn');
-const signupBtn        = document.getElementById('signup-btn');
-const nicknameBtn      = document.getElementById('nickname-btn');
-const dashboardView    = document.getElementById('dashboard-view');
-const adminView        = document.getElementById('admin-view');
-const adminWelcomeCard = document.getElementById('admin-welcome-card');
-const userMapSection   = document.getElementById('user-map-section');
-const userEmailDisplay = document.getElementById('user-email-display');
-const userEmailMap     = document.getElementById('user-email-map');
-const verifiedStatus   = document.getElementById('verified-status');
-const adminGreeting    = document.getElementById('admin-greeting');
-const userGreeting     = document.getElementById('user-greeting');
-const navDashboard     = document.getElementById('nav-dashboard');
-const navAdmin         = document.getElementById('nav-admin');
-const logoutBtn        = document.getElementById('logout-btn');
-const totalUsersEl     = document.getElementById('total-users');
-const latestUserEl     = document.getElementById('latest-user');
-const usersListEl      = document.getElementById('users-list');
-const googleLoginBtn   = document.getElementById('google-login-btn');
-const googleSignupBtn  = document.getElementById('google-signup-btn');
+const loginView         = document.getElementById('login-view');
+const signupView        = document.getElementById('signup-view');
+const loginError        = document.getElementById('login-error');
+const signupError       = document.getElementById('signup-error');
+const nicknameError     = document.getElementById('nickname-error');
+const loginForm         = document.getElementById('login-form');
+const signupForm        = document.getElementById('signup-form');
+const nicknameForm      = document.getElementById('nickname-form');
+const loginBtn          = document.getElementById('login-btn');
+const signupBtn         = document.getElementById('signup-btn');
+const nicknameBtn       = document.getElementById('nickname-btn');
+const dashboardView     = document.getElementById('dashboard-view');
+const adminView         = document.getElementById('admin-view');
+const adminWelcomeCard  = document.getElementById('admin-welcome-card');
+const userMapSection    = document.getElementById('user-map-section');
+const userEmailDisplay  = document.getElementById('user-email-display');
+const userEmailMap      = document.getElementById('user-email-map');
+const verifiedStatus    = document.getElementById('verified-status');
+const adminGreeting     = document.getElementById('admin-greeting');
+const userGreeting      = document.getElementById('user-greeting');
+const navDashboard      = document.getElementById('nav-dashboard');
+const navAdmin          = document.getElementById('nav-admin');
+const logoutBtn         = document.getElementById('logout-btn');
+const totalUsersEl      = document.getElementById('total-users');
+const latestUserEl      = document.getElementById('latest-user');
+const usersListEl       = document.getElementById('users-list');
+const googleLoginBtn    = document.getElementById('google-login-btn');
+const googleSignupBtn   = document.getElementById('google-signup-btn');
 
-// ── Role & animation state ───────────────────────────────────────────────────────
-let currentRole       = null;
-let mapInitialized    = false;
-let currentCancelToken = null;
+// ── App state ───────────────────────────────────────────────────────────────────
+let currentRole     = null;
+let currentUser     = null;
+let currentNickname = '';
+let gameInitialized = false;
 
 // ── Auth state listener ─────────────────────────────────────────────────────────
 onAuthStateChanged(auth, async user => {
+  currentUser = user;
   if (user) {
-    // Cancel any running map animation immediately
-    if (currentCancelToken) currentCancelToken.cancelled = true;
-
     authContainer.classList.add('hidden');
 
-    // Fetch user doc from Firestore
     let role = 'user', nickname = null;
     try {
       const userDocRef = doc(db, 'users', user.uid);
@@ -80,7 +78,6 @@ onAuthStateChanged(auth, async user => {
         if (data.role) {
           role = data.role;
         } else {
-          // Legacy account missing role — if only user in system, grant admin
           const countSnap = await getCountFromServer(collection(db, 'users'));
           role = countSnap.data().count <= 1 ? 'admin' : 'user';
           await setDoc(userDocRef, { role }, { merge: true });
@@ -97,16 +94,16 @@ onAuthStateChanged(auth, async user => {
     currentRole = role;
 
     if (!nickname) {
-      // New user — collect nickname before entering app
       nicknameContainer.classList.remove('hidden');
       appContainer.classList.add('hidden');
     } else {
       enterApp(user, nickname, role);
     }
   } else {
-    if (currentCancelToken) currentCancelToken.cancelled = true;
-    currentRole    = null;
-    mapInitialized = false;
+    currentUser     = null;
+    currentNickname = '';
+    currentRole     = null;
+    gameInitialized = false;
     authContainer.classList.remove('hidden');
     appContainer.classList.add('hidden');
     nicknameContainer.classList.add('hidden');
@@ -116,6 +113,7 @@ onAuthStateChanged(auth, async user => {
 
 // ── Enter app after nickname is confirmed ────────────────────────────────────────
 function enterApp(user, nickname, role) {
+  currentNickname = nickname;
   nicknameContainer.classList.add('hidden');
   appContainer.classList.remove('hidden');
 
@@ -136,16 +134,16 @@ function enterApp(user, nickname, role) {
     navAdmin.classList.add('hidden');
     adminWelcomeCard.classList.add('hidden');
     userMapSection.classList.remove('hidden');
-    if (!mapInitialized) {
-      mapInitialized = true;
-      initUserMap();
+    if (!gameInitialized) {
+      gameInitialized = true;
+      initGame();
     }
   }
 
   showAppView('dashboard');
 }
 
-// ── Nickname setup ────────────────────────────────────────────────────────────────
+// ── Nickname setup ───────────────────────────────────────────────────────────────
 nicknameForm.addEventListener('submit', async e => {
   e.preventDefault();
   const nickname = document.getElementById('nickname-input').value.trim();
@@ -156,7 +154,7 @@ nicknameForm.addEventListener('submit', async e => {
     const user = auth.currentUser;
     await setDoc(doc(db, 'users', user.uid), { nickname }, { merge: true });
     enterApp(user, nickname, currentRole);
-  } catch (err) {
+  } catch {
     nicknameError.textContent = 'Could not save nickname. Please try again.';
     nicknameError.classList.remove('hidden');
   } finally {
@@ -164,7 +162,7 @@ nicknameForm.addEventListener('submit', async e => {
   }
 });
 
-// ── Auth view switching ─────────────────────────────────────────────────────────
+// ── Auth view switching ──────────────────────────────────────────────────────────
 function showAuthView(view) {
   if (view === 'login') {
     loginView.classList.add('active');
@@ -186,14 +184,13 @@ document.getElementById('go-login').addEventListener('click', e => {
   showAuthView('login');
 });
 
-// ── App view switching ──────────────────────────────────────────────────────────
+// ── App view switching ───────────────────────────────────────────────────────────
 function showAppView(view) {
   dashboardView.classList.remove('active');
   adminView.classList.remove('active');
   navDashboard.classList.remove('active');
   navAdmin.classList.remove('active');
 
-  // Block non-admins from accessing admin view
   if (view === 'admin' && currentRole !== 'admin') view = 'dashboard';
 
   if (view === 'dashboard') {
@@ -213,7 +210,7 @@ function showAppView(view) {
 navDashboard.addEventListener('click', e => { e.preventDefault(); showAppView('dashboard'); });
 navAdmin.addEventListener('click',     e => { e.preventDefault(); showAppView('admin'); });
 
-// ── Google Sign-In ──────────────────────────────────────────────────────────────
+// ── Google Sign-In ───────────────────────────────────────────────────────────────
 async function handleGoogleSignIn(btn, errorEl) {
   setLoading(btn, true);
   errorEl.classList.add('hidden');
@@ -241,19 +238,16 @@ async function handleGoogleSignIn(btn, errorEl) {
     setLoading(btn, false);
   }
 }
-
 googleLoginBtn.addEventListener('click',  () => handleGoogleSignIn(googleLoginBtn,  loginError));
 googleSignupBtn.addEventListener('click', () => handleGoogleSignIn(googleSignupBtn, signupError));
 
-// ── Login ───────────────────────────────────────────────────────────────────────
+// ── Login ────────────────────────────────────────────────────────────────────────
 loginForm.addEventListener('submit', async e => {
   e.preventDefault();
   const email    = document.getElementById('login-email').value.trim();
   const password = document.getElementById('login-password').value;
-
   setLoading(loginBtn, true);
   loginError.classList.add('hidden');
-
   try {
     await signInWithEmailAndPassword(auth, email, password);
   } catch (err) {
@@ -263,21 +257,15 @@ loginForm.addEventListener('submit', async e => {
   }
 });
 
-// ── Signup ──────────────────────────────────────────────────────────────────────
+// ── Signup ───────────────────────────────────────────────────────────────────────
 signupForm.addEventListener('submit', async e => {
   e.preventDefault();
   const email    = document.getElementById('signup-email').value.trim();
   const password = document.getElementById('signup-password').value;
   const confirm  = document.getElementById('signup-confirm').value;
-
-  if (password !== confirm) {
-    showError(signupError, 'passwords-mismatch');
-    return;
-  }
-
+  if (password !== confirm) { showError(signupError, 'passwords-mismatch'); return; }
   setLoading(signupBtn, true);
   signupError.classList.add('hidden');
-
   try {
     const { user } = await createUserWithEmailAndPassword(auth, email, password);
     const role = await determineRole();
@@ -294,13 +282,10 @@ signupForm.addEventListener('submit', async e => {
   }
 });
 
-// ── Logout ──────────────────────────────────────────────────────────────────────
-logoutBtn.addEventListener('click', () => {
-  if (currentCancelToken) currentCancelToken.cancelled = true;
-  signOut(auth);
-});
+// ── Logout ───────────────────────────────────────────────────────────────────────
+logoutBtn.addEventListener('click', () => signOut(auth));
 
-// ── Determine role for new signup ───────────────────────────────────────────────
+// ── Determine role for new signup ─────────────────────────────────────────────────
 async function determineRole() {
   try {
     const snap = await getCountFromServer(collection(db, 'users'));
@@ -310,7 +295,7 @@ async function determineRole() {
   }
 }
 
-// ── Admin data ──────────────────────────────────────────────────────────────────
+// ── Admin data ───────────────────────────────────────────────────────────────────
 async function loadAdminData() {
   usersListEl.innerHTML    = '<div class="loading-text">Loading users…</div>';
   totalUsersEl.textContent = '…';
@@ -334,14 +319,14 @@ async function loadAdminData() {
 
     let html = '<div class="users-list-header">Recent Signups</div>';
     snapshot.docs.forEach(docSnap => {
-      const d            = docSnap.data();
-      const initial      = (d.nickname || d.email || '?')[0].toUpperCase();
-      const date         = d.createdAt?.toDate();
-      const dateStr      = date ? formatDate(date) : 'Just now';
-      const isAdmin      = d.role === 'admin';
-      const badgeCls     = isAdmin ? 'user-badge admin-badge' : 'user-badge';
-      const badgeTxt     = isAdmin ? 'Admin' : 'Active';
-      const nicknameTag  = d.nickname
+      const d           = docSnap.data();
+      const initial     = (d.nickname || d.email || '?')[0].toUpperCase();
+      const date        = d.createdAt?.toDate();
+      const dateStr     = date ? formatDate(date) : 'Just now';
+      const isAdmin     = d.role === 'admin';
+      const badgeCls    = isAdmin ? 'user-badge admin-badge' : 'user-badge';
+      const badgeTxt    = isAdmin ? 'Admin' : 'Active';
+      const nicknameTag = d.nickname
         ? `<span class="user-nickname-tag">${escapeHtml(d.nickname)}</span>`
         : '<span class="user-nickname-tag no-nickname">No nickname</span>';
       html += `
@@ -355,164 +340,211 @@ async function loadAdminData() {
         </div>`;
     });
     usersListEl.innerHTML = html;
-
   } catch (err) {
     usersListEl.innerHTML = `<div class="loading-text">Error: ${escapeHtml(err.message)}</div>`;
   }
 }
 
-// ── US Map Animation ────────────────────────────────────────────────────────────
-// West → East FIPS order (all 50 states)
-const WEST_TO_EAST_FIPS = [
-  15, 2,                    // HI, AK
-  53, 41, 6,                // WA, OR, CA
-  32, 16, 30, 56,           // NV, ID, MT, WY
-  49,  4,  8, 35,           // UT, AZ, CO, NM
-  38, 46, 31, 20, 40,       // ND, SD, NE, KS, OK
-  48,                       // TX
-  27, 19, 29,  5, 22,       // MN, IA, MO, AR, LA
-  55, 17, 26, 18,           // WI, IL, MI, IN
-  28, 47, 21,  1,           // MS, TN, KY, AL
-  39, 13, 12,               // OH, GA, FL
-  36, 42, 37, 45,           // NY, PA, NC, SC
-  51, 54, 24, 10,           // VA, WV, MD, DE
-  34,  9, 44, 25,           // NJ, CT, RI, MA
-  50, 33, 23                // VT, NH, ME
-];
+// ── Game constants ───────────────────────────────────────────────────────────────
+const GAME_DURATION   = 30;
+const TARGET_LIFETIME = 1500;
+const HIT_POINTS      = 10;
+const MISS_PENALTY    = 2;
+const TARGET_COLORS   = ['#6c63ff','#e060c0','#2196f3','#00c853','#ff9800','#f44336','#00bcd4','#ab47bc'];
 
-function getStateColor(index, total) {
-  const t     = index / Math.max(total - 1, 1);
-  const hue   = Math.round(15 + t * 255);          // 15=coral → 270=purple
-  const sat   = 92;
-  const light = Math.round(68 + Math.sin(t * Math.PI) * 9); // 68–77% — vivid on dark bg
-  return `hsl(${hue},${sat}%,${light}%)`;
+// ── Game state ───────────────────────────────────────────────────────────────────
+let gameActive    = false;
+let gameScore     = 0;
+let gameTimeLeft  = GAME_DURATION;
+let timerInterval = null;
+let spawnTimeout  = null;
+
+// ── Game init ────────────────────────────────────────────────────────────────────
+function initGame() {
+  document.getElementById('game-start-btn').addEventListener('click', startGame);
+  document.getElementById('game-restart-btn').addEventListener('click', startGame);
+  loadLeaderboard();
 }
 
-async function initUserMap() {
-  const mapContainer = document.getElementById('map-container');
-  if (!mapContainer) return;
+// ── Start game ───────────────────────────────────────────────────────────────────
+function startGame() {
+  clearInterval(timerInterval);
+  clearTimeout(spawnTimeout);
 
-  // New cancel token for this session
-  if (currentCancelToken) currentCancelToken.cancelled = true;
-  const token = { cancelled: false };
-  currentCancelToken = token;
+  const gameArea = document.getElementById('game-area');
+  gameArea.querySelectorAll('.target, .float-score').forEach(el => el.remove());
 
-  mapContainer.innerHTML = '<div class="map-loading"><div class="spinner" style="width:28px;height:28px;border-width:3px"></div></div>';
+  gameActive   = true;
+  gameScore    = 0;
+  gameTimeLeft = GAME_DURATION;
 
-  try {
-    const [d3, topojson] = await Promise.all([
-      import('https://esm.sh/d3@7'),
-      import('https://esm.sh/topojson-client@3')
-    ]);
+  document.getElementById('game-overlay').classList.add('hidden');
+  document.getElementById('game-result').classList.add('hidden');
+  updateHUD();
 
-    const us = await fetch('https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json')
-      .then(r => { if (!r.ok) throw new Error('fetch failed'); return r.json(); });
+  scheduleSpawn();
 
-    if (token.cancelled) return;
+  timerInterval = setInterval(() => {
+    gameTimeLeft--;
+    updateHUD();
+    if (gameTimeLeft <= 0) endGame();
+  }, 1000);
+}
 
-    mapContainer.innerHTML = '';
+function updateHUD() {
+  document.getElementById('score-val').textContent = gameScore;
+  const timerEl = document.getElementById('timer-val');
+  timerEl.textContent = gameTimeLeft;
+  timerEl.classList.toggle('danger', gameTimeLeft <= 5);
+}
 
-    const svg = d3.select(mapContainer)
-      .append('svg')
-      .attr('viewBox', '0 0 960 600')
-      .attr('width', '100%')
-      .style('display', 'block')
-      .style('border-radius', '12px');
+// ── Spawn loop ───────────────────────────────────────────────────────────────────
+function scheduleSpawn() {
+  if (!gameActive) return;
+  spawnTarget();
+  const delay = Math.max(350, 920 - Math.floor(gameScore / 20) * 45);
+  spawnTimeout = setTimeout(scheduleSpawn, delay);
+}
 
-    // Ocean / background
-    svg.append('rect')
-      .attr('width', 960).attr('height', 600)
-      .attr('fill', '#03030f');
+function spawnTarget() {
+  const gameArea = document.getElementById('game-area');
+  const w = gameArea.clientWidth;
+  const h = gameArea.clientHeight;
 
-    // SVG glow filter
-    const defs   = svg.append('defs');
-    const filter = defs.append('filter').attr('id', 'state-glow').attr('x', '-20%').attr('y', '-20%').attr('width', '140%').attr('height', '140%');
-    filter.append('feGaussianBlur').attr('stdDeviation', '5').attr('result', 'blur');
-    const merge  = filter.append('feMerge');
-    merge.append('feMergeNode').attr('in', 'blur');
-    merge.append('feMergeNode').attr('in', 'SourceGraphic');
+  const size   = Math.max(38, 72 - Math.floor(gameScore / 30) * 4);
+  const margin = 12;
+  const x      = Math.random() * (w - size - margin * 2) + margin;
+  const y      = Math.random() * (h - size - margin * 2) + margin;
+  const color  = TARGET_COLORS[Math.floor(Math.random() * TARGET_COLORS.length)];
 
-    const pathGen  = d3.geoPath();
-    const features = topojson.feature(us, us.objects.states).features;
+  const el = document.createElement('div');
+  el.className = 'target';
+  el.style.cssText = [
+    `left:${x}px`, `top:${y}px`,
+    `width:${size}px`, `height:${size}px`,
+    `background:${color}`,
+    `box-shadow:0 0 ${Math.round(size * 0.5)}px ${color}55`
+  ].join(';');
 
-    // Base state fills — visible dark slate so outline is apparent before animation
-    svg.selectAll('.state')
-      .data(features)
-      .enter()
-      .append('path')
-      .attr('class', 'state')
-      .attr('d', pathGen)
-      .attr('data-fips', d => d.id)
-      .attr('fill', '#1a1a40')
-      .attr('stroke', '#3a3a80')
-      .attr('stroke-width', '0.8');
+  gameArea.appendChild(el);
 
-    // State borders mesh (thin, on top)
-    svg.append('path')
-      .datum(topojson.mesh(us, us.objects.states, (a, b) => a !== b))
-      .attr('fill', 'none')
-      .attr('stroke', '#44449a')
-      .attr('stroke-width', '0.6');
+  // Pop-in (double rAF ensures element is painted before transition starts)
+  requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add('t-in')));
 
-    startMapAnimation(svg, features, d3, token);
+  // Fade warning at 60% of lifetime
+  const fadeTimer = setTimeout(() => {
+    if (el.isConnected) el.classList.add('t-fade');
+  }, TARGET_LIFETIME * 0.6);
 
-  } catch (err) {
-    console.error('Map init error:', err);
-    if (!token.cancelled) {
-      mapContainer.innerHTML = `
-        <div style="text-align:center;padding:60px 20px;">
-          <div class="success-icon" style="margin:0 auto 20px;">✓</div>
-          <h2 style="font-size:22px;font-weight:700;">You have successfully logged in!</h2>
-        </div>`;
+  // Click → hit
+  el.addEventListener('pointerdown', e => {
+    e.stopPropagation();
+    if (!gameActive) return;
+    clearTimeout(fadeTimer);
+    clearTimeout(expireTimer);
+    gameScore += HIT_POINTS;
+    updateHUD();
+    showFloat(`+${HIT_POINTS}`, x + size / 2, y, color);
+    el.classList.add('t-hit');
+    setTimeout(() => el.remove(), 230);
+  });
+
+  // Auto-expire → miss penalty
+  const expireTimer = setTimeout(() => {
+    clearTimeout(fadeTimer);
+    if (!el.isConnected) return;
+    if (gameActive && gameScore > 0) {
+      gameScore = Math.max(0, gameScore - MISS_PENALTY);
+      updateHUD();
+      showFloat(`−${MISS_PENALTY}`, x + size / 2, y + size / 2, '#d93025');
     }
+    el.classList.add('t-miss');
+    setTimeout(() => el.remove(), 180);
+  }, TARGET_LIFETIME);
+}
+
+function showFloat(text, x, y, color) {
+  const gameArea = document.getElementById('game-area');
+  const el = document.createElement('div');
+  el.className = 'float-score';
+  el.textContent = text;
+  el.style.cssText = `left:${x}px;top:${y}px;color:${color}`;
+  gameArea.appendChild(el);
+  setTimeout(() => el.remove(), 700);
+}
+
+// ── End game ─────────────────────────────────────────────────────────────────────
+async function endGame() {
+  gameActive = false;
+  clearInterval(timerInterval);
+  clearTimeout(spawnTimeout);
+
+  const gameArea = document.getElementById('game-area');
+  gameArea.querySelectorAll('.target').forEach(el => {
+    el.classList.add('t-miss');
+    setTimeout(() => el.remove(), 180);
+  });
+
+  document.getElementById('result-score-val').textContent = gameScore;
+  document.getElementById('result-msg').textContent = '';
+  document.getElementById('game-result').classList.remove('hidden');
+
+  if (currentUser) await submitScore(gameScore);
+}
+
+// ── Leaderboard — Firestore ───────────────────────────────────────────────────────
+async function submitScore(score) {
+  if (!currentUser || score === 0) return;
+  const msgEl = document.getElementById('result-msg');
+  try {
+    const ref  = doc(db, 'leaderboard', currentUser.uid);
+    const snap = await getDoc(ref);
+    const prev = snap.exists() ? (snap.data().score ?? 0) : 0;
+    if (score > prev) {
+      await setDoc(ref, {
+        uid:       currentUser.uid,
+        nickname:  currentNickname,
+        score,
+        updatedAt: serverTimestamp()
+      });
+      msgEl.textContent = '🏆 New personal best!';
+    } else {
+      msgEl.textContent = `Your best: ${prev} pts`;
+    }
+    loadLeaderboard();
+  } catch {
+    msgEl.textContent = 'Score not saved — check your connection.';
   }
 }
 
-function startMapAnimation(svg, features, d3, token) {
-  if (token.cancelled) return;
-
-  const ordered = WEST_TO_EAST_FIPS
-    .map(fips => features.find(f => +f.id === fips))
-    .filter(Boolean);
-
-  // Append any state not covered by the ordered list
-  const seen = new Set(ordered.map(f => f.id));
-  features.forEach(f => { if (!seen.has(f.id)) ordered.push(f); });
-
-  const STEP_MS  = 310;
-  const FILL_MS  = 620;
-  const total    = ordered.length;
-
-  ordered.forEach((feature, i) => {
-    const color      = getStateColor(i, total);
-    const flashColor = `hsl(${Math.round(15 + (i / total) * 255)},100%,92%)`;
-
-    setTimeout(() => {
-      if (token.cancelled) return;
-      svg.select(`path[data-fips="${feature.id}"]`)
-        .attr('filter', 'url(#state-glow)')
-        .transition().duration(140).ease(d3.easeExpOut)
-        .attr('fill', flashColor)
-        .transition().duration(FILL_MS).ease(d3.easeCubicInOut)
-        .attr('fill', color)
-        .attr('filter', 'none');
-    }, i * STEP_MS);
-  });
-
-  // Pause, fade out, loop
-  const resetAt = total * STEP_MS + FILL_MS + 2800;
-  setTimeout(() => {
-    if (token.cancelled) return;
-    svg.selectAll('.state')
-      .transition().duration(1400).ease(d3.easeLinear)
-      .attr('fill', '#1a1a40');
-    setTimeout(() => {
-      if (!token.cancelled) startMapAnimation(svg, features, d3, token);
-    }, 1600);
-  }, resetAt);
+async function loadLeaderboard() {
+  const listEl = document.getElementById('leaderboard-list');
+  if (!listEl) return;
+  listEl.innerHTML = '<div class="loading-text">Loading…</div>';
+  try {
+    const snap = await getDocs(
+      query(collection(db, 'leaderboard'), orderBy('score', 'desc'), limit(10))
+    );
+    if (snap.empty) {
+      listEl.innerHTML = '<div class="loading-text">No scores yet — be the first!</div>';
+      return;
+    }
+    const medals = ['🥇', '🥈', '🥉'];
+    listEl.innerHTML = snap.docs.map((d, i) => {
+      const { nickname, score } = d.data();
+      const isMe = currentUser?.uid === d.id;
+      return `<div class="lb-row${isMe ? ' lb-row-me' : ''}">
+        <span class="lb-rank">${medals[i] ?? `${i + 1}`}</span>
+        <span class="lb-name">${escapeHtml(nickname || 'Anonymous')}</span>
+        <span class="lb-score">${score} pts</span>
+      </div>`;
+    }).join('');
+  } catch {
+    listEl.innerHTML = '<div class="loading-text">Could not load leaderboard.</div>';
+  }
 }
 
-// ── Helpers ─────────────────────────────────────────────────────────────────────
+// ── Helpers ──────────────────────────────────────────────────────────────────────
 function setLoading(btn, on) {
   btn.querySelector('span').style.opacity    = on ? '0' : '1';
   btn.querySelector('.spinner').classList.toggle('hidden', !on);
@@ -526,15 +558,15 @@ function showError(el, code) {
 
 function errorMessage(code) {
   return ({
-    'auth/user-not-found':        'No account found with this email.',
-    'auth/wrong-password':        'Incorrect password. Please try again.',
-    'auth/invalid-credential':    'Invalid email or password.',
-    'auth/email-already-in-use':  'An account with this email already exists.',
-    'auth/weak-password':         'Password must be at least 6 characters.',
-    'auth/invalid-email':         'Please enter a valid email address.',
-    'auth/too-many-requests':     'Too many attempts. Please wait and try again.',
-    'auth/network-request-failed':'Network error — check your connection.',
-    'passwords-mismatch':         'Passwords do not match.',
+    'auth/user-not-found':         'No account found with this email.',
+    'auth/wrong-password':         'Incorrect password. Please try again.',
+    'auth/invalid-credential':     'Invalid email or password.',
+    'auth/email-already-in-use':   'An account with this email already exists.',
+    'auth/weak-password':          'Password must be at least 6 characters.',
+    'auth/invalid-email':          'Please enter a valid email address.',
+    'auth/too-many-requests':      'Too many attempts. Please wait and try again.',
+    'auth/network-request-failed': 'Network error — check your connection.',
+    'passwords-mismatch':          'Passwords do not match.',
   })[code] ?? 'Something went wrong. Please try again.';
 }
 

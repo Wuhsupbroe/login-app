@@ -156,9 +156,55 @@
           <div class="success-icon">✓</div>
           <h1 id="user-greeting" class="nickname-heading">Hi!</h1>
           <p class="user-email-display" id="user-email-map"></p>
-          <p class="map-subtitle">Watch the country light up — state by state</p>
+          <p class="map-subtitle">Click glowing targets — 30 seconds, highest score wins the leaderboard!</p>
         </div>
-        <div id="map-container"></div>
+
+        <!-- Quick Tap game -->
+        <div class="game-card">
+          <div class="game-header">
+            <div>
+              <h2 class="game-title">Quick Tap</h2>
+              <p class="game-sub">+10 per hit &nbsp;·&nbsp; −2 if missed</p>
+            </div>
+            <div class="game-hud">
+              <div class="hud-item">
+                <div id="score-val" class="hud-val hud-score">0</div>
+                <div class="hud-label">Score</div>
+              </div>
+              <div class="hud-sep"></div>
+              <div class="hud-item">
+                <div id="timer-val" class="hud-val hud-timer">30</div>
+                <div class="hud-label">Sec</div>
+              </div>
+            </div>
+          </div>
+
+          <div id="game-area" class="game-area">
+            <div id="game-overlay" class="game-overlay">
+              <div class="game-overlay-inner">
+                <div class="game-icon">🎯</div>
+                <h3>Quick Tap</h3>
+                <p>Click targets before they vanish.<br>Faster clicks = more points!</p>
+                <button id="game-start-btn" class="btn btn-game-start">Start Game</button>
+              </div>
+            </div>
+          </div>
+
+          <div id="game-result" class="game-result hidden">
+            <div class="result-label">Final Score</div>
+            <div id="result-score-val" class="result-score">0</div>
+            <div id="result-msg" class="result-msg"></div>
+            <button id="game-restart-btn" class="btn btn-game-restart">Play Again</button>
+          </div>
+        </div>
+
+        <!-- Leaderboard -->
+        <div class="leaderboard-card">
+          <h2 class="lb-title">🏆 Leaderboard</h2>
+          <div id="leaderboard-list" class="lb-list">
+            <div class="loading-text">Loading…</div>
+          </div>
+        </div>
       </div>
 
     </div>
