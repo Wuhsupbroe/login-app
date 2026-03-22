@@ -108,16 +108,18 @@
       <div class="nav-brand">⚡ AuthApp</div>
       <div class="nav-links">
         <a href="#" id="nav-dashboard" class="nav-link active">Dashboard</a>
-        <a href="#" id="nav-admin" class="nav-link">Admin</a>
+        <a href="#" id="nav-admin" class="nav-link hidden">Admin</a>
         <button id="logout-btn" class="btn btn-ghost">Sign out</button>
       </div>
     </nav>
 
     <!-- Dashboard -->
     <div id="dashboard-view" class="page-content">
-      <div class="page-card">
+
+      <!-- Shown only for admins -->
+      <div id="admin-welcome-card" class="page-card hidden">
         <div class="success-icon">✓</div>
-        <h1>You have successfully logged in!</h1>
+        <h1>Welcome, Admin!</h1>
         <p class="user-email-display" id="user-email-display"></p>
         <div class="stats-grid">
           <div class="stat-card">
@@ -130,6 +132,18 @@
           </div>
         </div>
       </div>
+
+      <!-- Shown only for regular users -->
+      <div id="user-map-section" class="hidden">
+        <div class="map-welcome-card page-card">
+          <div class="success-icon">✓</div>
+          <h1>You're in!</h1>
+          <p class="user-email-display" id="user-email-map"></p>
+          <p class="map-subtitle">Watch the country light up — state by state</p>
+        </div>
+        <div id="map-container"></div>
+      </div>
+
     </div>
 
     <!-- Admin -->

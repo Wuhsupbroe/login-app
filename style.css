@@ -333,6 +333,58 @@ input:focus {
   padding: 36px; font-size: 14px;
 }
 
+/* ── Admin badge variant ────────────────────────────────────────────────────── */
+.admin-badge {
+  background: rgba(108,99,255,.1) !important;
+  color: var(--accent) !important;
+  border-color: rgba(108,99,255,.25) !important;
+}
+
+/* ── User map dashboard ─────────────────────────────────────────────────────── */
+#user-map-section {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.map-welcome-card {
+  text-align: center;
+}
+.map-welcome-card h1 {
+  text-align: center;
+  font-size: 26px;
+}
+.map-subtitle {
+  color: var(--text-muted);
+  font-size: 14px;
+  margin-top: 8px;
+  letter-spacing: .2px;
+}
+
+#map-container {
+  background: rgba(6, 6, 22, 0.85);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  overflow: hidden;
+  padding: 18px;
+  min-height: 200px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+#map-container svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.map-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 200px;
+}
+
 /* ── Utility ────────────────────────────────────────────────────────────────── */
 .hidden { display: none !important; }
 
