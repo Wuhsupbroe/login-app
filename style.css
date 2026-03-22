@@ -140,6 +140,37 @@ input:focus {
 }
 .btn-ghost:hover { color: var(--text); background: var(--surface-hover); }
 
+.btn-google {
+  width: 100%; padding: 13px 18px;
+  background: rgba(255,255,255,.07);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 12px;
+  font-size: 15px; font-weight: 500;
+  gap: 10px;
+  transition: background .2s, border-color .2s, transform .15s;
+  margin-bottom: 4px;
+}
+.btn-google:hover {
+  background: rgba(255,255,255,.12);
+  border-color: rgba(255,255,255,.18);
+  transform: translateY(-1px);
+}
+.btn-google:active { transform: translateY(0); }
+.btn-google:disabled { opacity: .7; cursor: not-allowed; transform: none; }
+.btn-google svg { flex-shrink: 0; }
+
+/* Divider */
+.divider {
+  display: flex; align-items: center; gap: 12px;
+  margin: 18px 0;
+  color: var(--text-muted); font-size: 13px;
+}
+.divider::before, .divider::after {
+  content: ''; flex: 1;
+  height: 1px; background: var(--border);
+}
+
 /* ── Error ──────────────────────────────────────────────────────────────────── */
 .error-msg {
   background: var(--error-bg);

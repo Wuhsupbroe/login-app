@@ -2,8 +2,9 @@
 import { initializeApp }                        from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import { getAuth, createUserWithEmailAndPassword,
          signInWithEmailAndPassword, signOut,
-         onAuthStateChanged }                   from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
-import { getFirestore, doc, setDoc, collection,
+         onAuthStateChanged, GoogleAuthProvider,
+         signInWithPopup }                      from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+import { getFirestore, doc, setDoc, getDoc, collection,
          getDocs, serverTimestamp,
          query, orderBy }                       from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
@@ -20,9 +21,10 @@ const firebaseConfig = {
 };
 // ───────────────────────────────────────────────────────────────────────────────
 
-const app  = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db   = getFirestore(app);
+const app      = initializeApp(firebaseConfig);
+const auth     = getAuth(app);
+const db       = getFirestore(app);
+const gProvider = new GoogleAuthProvider();
 
 // ── DOM refs ────────────────────────────────────────────────────────────────────
 const authContainer    = document.getElementById('auth-container');
@@ -45,6 +47,8 @@ const logoutBtn        = document.getElementById('logout-btn');
 const totalUsersEl     = document.getElementById('total-users');
 const latestUserEl     = document.getElementById('latest-user');
 const usersListEl      = document.getElementById('users-list');
+const googleLoginBtn   = document.getElementById('google-login-btn');
+const googleSignupBtn  = document.getElementById('google-signup-btn');
 
 // ── Auth state listener ─────────────────────────────────────────────────────────
 onAuthStateChanged(auth, user => {
@@ -107,6 +111,37 @@ function showAppView(view) {
 
 navDashboard.addEventListener('click', e => { e.preventDefault(); showAppView('dashboard'); });
 navAdmin.addEventListener('click',     e => { e.preventDefault(); showAppView('admin'); });
+
+// ── Google Sign-In ──────────────────────────────────────────────────────────────
+async function handleGoogleSignIn(btn, errorEl) {
+  setLoading(btn, true);
+  errorEl.classList.add('hidden');
+  try {
+    const result = await signInWithPopup(auth, gProvider);
+    const user   = result.user;
+    // Write to Firestore only on first sign-in (check if doc already exists)
+    const userRef = doc(db, 'users', user.uid);
+    const snap    = await getDoc(userRef);
+    if (!snap.exists()) {
+      await setDoc(userRef, {
+        email:     user.email,
+        uid:       user.uid,
+        name:      user.displayName ?? null,
+        provider:  'google',
+        createdAt: serverTimestamp()
+      });
+    }
+  } catch (err) {
+    if (err.code !== 'auth/popup-closed-by-user' && err.code !== 'auth/cancelled-popup-request') {
+      showError(errorEl, err.code);
+    }
+  } finally {
+    setLoading(btn, false);
+  }
+}
+
+googleLoginBtn.addEventListener('click',  () => handleGoogleSignIn(googleLoginBtn,  loginError));
+googleSignupBtn.addEventListener('click', () => handleGoogleSignIn(googleSignupBtn, signupError));
 
 // ── Login ───────────────────────────────────────────────────────────────────────
 loginForm.addEventListener('submit', async e => {
