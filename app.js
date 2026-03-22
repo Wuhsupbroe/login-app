@@ -26,14 +26,18 @@ const gProvider = new GoogleAuthProvider();
 // ── DOM refs ────────────────────────────────────────────────────────────────────
 const authContainer    = document.getElementById('auth-container');
 const appContainer     = document.getElementById('app-container');
+const nicknameContainer = document.getElementById('nickname-container');
 const loginView        = document.getElementById('login-view');
 const signupView       = document.getElementById('signup-view');
 const loginError       = document.getElementById('login-error');
 const signupError      = document.getElementById('signup-error');
+const nicknameError    = document.getElementById('nickname-error');
 const loginForm        = document.getElementById('login-form');
 const signupForm       = document.getElementById('signup-form');
+const nicknameForm     = document.getElementById('nickname-form');
 const loginBtn         = document.getElementById('login-btn');
 const signupBtn        = document.getElementById('signup-btn');
+const nicknameBtn      = document.getElementById('nickname-btn');
 const dashboardView    = document.getElementById('dashboard-view');
 const adminView        = document.getElementById('admin-view');
 const adminWelcomeCard = document.getElementById('admin-welcome-card');
@@ -41,6 +45,8 @@ const userMapSection   = document.getElementById('user-map-section');
 const userEmailDisplay = document.getElementById('user-email-display');
 const userEmailMap     = document.getElementById('user-email-map');
 const verifiedStatus   = document.getElementById('verified-status');
+const adminGreeting    = document.getElementById('admin-greeting');
+const userGreeting     = document.getElementById('user-greeting');
 const navDashboard     = document.getElementById('nav-dashboard');
 const navAdmin         = document.getElementById('nav-admin');
 const logoutBtn        = document.getElementById('logout-btn');
@@ -62,17 +68,24 @@ onAuthStateChanged(auth, async user => {
     if (currentCancelToken) currentCancelToken.cancelled = true;
 
     authContainer.classList.add('hidden');
-    appContainer.classList.remove('hidden');
 
-    // Fetch role from Firestore
-    let role = 'user';
+    // Fetch user doc from Firestore
+    let role = 'user', nickname = null;
     try {
       const userDocRef = doc(db, 'users', user.uid);
       const userDoc    = await getDoc(userDocRef);
-      if (userDoc.exists() && userDoc.data().role) {
-        role = userDoc.data().role;
+      if (userDoc.exists()) {
+        const data = userDoc.data();
+        nickname = data.nickname ?? null;
+        if (data.role) {
+          role = data.role;
+        } else {
+          // Legacy account missing role — if only user in system, grant admin
+          const countSnap = await getCountFromServer(collection(db, 'users'));
+          role = countSnap.data().count <= 1 ? 'admin' : 'user';
+          await setDoc(userDocRef, { role }, { merge: true });
+        }
       } else {
-        // Legacy account missing role — if only user in system, grant admin
         const countSnap = await getCountFromServer(collection(db, 'users'));
         role = countSnap.data().count <= 1 ? 'admin' : 'user';
         await setDoc(userDocRef, { role }, { merge: true });
@@ -83,33 +96,71 @@ onAuthStateChanged(auth, async user => {
 
     currentRole = role;
 
-    const email = user.email || user.displayName || '';
-    if (userEmailDisplay) userEmailDisplay.textContent = email;
-    if (userEmailMap)     userEmailMap.textContent     = email;
-    if (verifiedStatus)   verifiedStatus.textContent   = user.emailVerified ? 'Yes ✓' : 'No';
-
-    if (role === 'admin') {
-      navAdmin.classList.remove('hidden');
-      adminWelcomeCard.classList.remove('hidden');
-      userMapSection.classList.add('hidden');
+    if (!nickname) {
+      // New user — collect nickname before entering app
+      nicknameContainer.classList.remove('hidden');
+      appContainer.classList.add('hidden');
     } else {
-      navAdmin.classList.add('hidden');
-      adminWelcomeCard.classList.add('hidden');
-      userMapSection.classList.remove('hidden');
-      if (!mapInitialized) {
-        mapInitialized = true;
-        initUserMap();
-      }
+      enterApp(user, nickname, role);
     }
-
-    showAppView('dashboard');
   } else {
     if (currentCancelToken) currentCancelToken.cancelled = true;
     currentRole    = null;
     mapInitialized = false;
     authContainer.classList.remove('hidden');
     appContainer.classList.add('hidden');
+    nicknameContainer.classList.add('hidden');
     showAuthView('login');
+  }
+});
+
+// ── Enter app after nickname is confirmed ────────────────────────────────────────
+function enterApp(user, nickname, role) {
+  nicknameContainer.classList.add('hidden');
+  appContainer.classList.remove('hidden');
+
+  const greetText = `Hi, ${nickname}!`;
+  if (adminGreeting) adminGreeting.textContent = greetText;
+  if (userGreeting)  userGreeting.textContent  = greetText;
+
+  const email = user.email || user.displayName || '';
+  if (userEmailDisplay) userEmailDisplay.textContent = email;
+  if (userEmailMap)     userEmailMap.textContent     = email;
+  if (verifiedStatus)   verifiedStatus.textContent   = user.emailVerified ? 'Yes ✓' : 'No';
+
+  if (role === 'admin') {
+    navAdmin.classList.remove('hidden');
+    adminWelcomeCard.classList.remove('hidden');
+    userMapSection.classList.add('hidden');
+  } else {
+    navAdmin.classList.add('hidden');
+    adminWelcomeCard.classList.add('hidden');
+    userMapSection.classList.remove('hidden');
+    if (!mapInitialized) {
+      mapInitialized = true;
+      initUserMap();
+    }
+  }
+
+  showAppView('dashboard');
+}
+
+// ── Nickname setup ────────────────────────────────────────────────────────────────
+nicknameForm.addEventListener('submit', async e => {
+  e.preventDefault();
+  const nickname = document.getElementById('nickname-input').value.trim();
+  if (!nickname) return;
+  setLoading(nicknameBtn, true);
+  nicknameError.classList.add('hidden');
+  try {
+    const user = auth.currentUser;
+    await setDoc(doc(db, 'users', user.uid), { nickname }, { merge: true });
+    enterApp(user, nickname, currentRole);
+  } catch (err) {
+    nicknameError.textContent = 'Could not save nickname. Please try again.';
+    nicknameError.classList.remove('hidden');
+  } finally {
+    setLoading(nicknameBtn, false);
   }
 });
 
@@ -283,18 +334,21 @@ async function loadAdminData() {
 
     let html = '<div class="users-list-header">Recent Signups</div>';
     snapshot.docs.forEach(docSnap => {
-      const d         = docSnap.data();
-      const initial   = (d.email || '?')[0].toUpperCase();
-      const date      = d.createdAt?.toDate();
-      const dateStr   = date ? formatDate(date) : 'Just now';
-      const isAdmin   = d.role === 'admin';
-      const badgeCls  = isAdmin ? 'user-badge admin-badge' : 'user-badge';
-      const badgeTxt  = isAdmin ? 'Admin' : 'Active';
+      const d            = docSnap.data();
+      const initial      = (d.nickname || d.email || '?')[0].toUpperCase();
+      const date         = d.createdAt?.toDate();
+      const dateStr      = date ? formatDate(date) : 'Just now';
+      const isAdmin      = d.role === 'admin';
+      const badgeCls     = isAdmin ? 'user-badge admin-badge' : 'user-badge';
+      const badgeTxt     = isAdmin ? 'Admin' : 'Active';
+      const nicknameTag  = d.nickname
+        ? `<span class="user-nickname-tag">${escapeHtml(d.nickname)}</span>`
+        : '<span class="user-nickname-tag no-nickname">No nickname</span>';
       html += `
         <div class="user-row">
           <div class="user-avatar">${initial}</div>
           <div class="user-info">
-            <div class="user-email">${escapeHtml(d.email || 'Unknown')}</div>
+            <div class="user-email">${escapeHtml(d.email || 'Unknown')} ${nicknameTag}</div>
             <div class="user-date">Joined ${dateStr}</div>
           </div>
           <span class="${badgeCls}">${badgeTxt}</span>

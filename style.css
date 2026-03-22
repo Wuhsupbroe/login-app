@@ -394,6 +394,33 @@ input:focus {
   border-top-color: rgba(255,255,255,.75);
 }
 
+/* ── Nickname heading (greeting in welcome cards) ───────────────────────────── */
+.nickname-heading {
+  font-size: 40px !important;
+  font-weight: 700 !important;
+  letter-spacing: -1.5px !important;
+  line-height: 1.1 !important;
+  margin-bottom: 8px !important;
+  text-align: center !important;
+}
+
+/* ── Nickname tag in admin user list ─────────────────────────────────────────── */
+.user-nickname-tag {
+  display: inline-block;
+  font-size: 11px; font-weight: 600;
+  padding: 2px 8px; border-radius: var(--radius-pill);
+  background: #f0effe; color: #5856d6;
+  border: 1px solid rgba(88,86,214,.2);
+  margin-left: 6px; vertical-align: middle;
+  letter-spacing: .01em;
+}
+.user-nickname-tag.no-nickname {
+  background: transparent;
+  color: var(--text-subtle);
+  border-color: var(--border);
+  font-weight: 400;
+}
+
 /* ── Utility ─────────────────────────────────────────────────────────────────── */
 .hidden { display: none !important; }
 

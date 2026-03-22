@@ -94,6 +94,27 @@
 
   </div>
 
+  <!-- ── NICKNAME SETUP (shown once after signup, no nickname yet) ─────────── -->
+  <div id="nickname-container" class="container hidden">
+    <div class="card active">
+      <div class="logo">👋</div>
+      <h1>Choose a nickname</h1>
+      <p class="subtitle">We'll greet you with this every time you log in</p>
+
+      <div id="nickname-error" class="error-msg hidden"></div>
+
+      <form id="nickname-form">
+        <div class="input-group">
+          <input type="text" id="nickname-input" placeholder="e.g. Alex, SpaceWalker…" required maxlength="30" autocomplete="off">
+        </div>
+        <button type="submit" class="btn btn-primary" id="nickname-btn">
+          <span>Continue</span>
+          <div class="spinner hidden"></div>
+        </button>
+      </form>
+    </div>
+  </div>
+
   <!-- ── APP CONTAINER (shown when logged in) ─────────────────────────────── -->
   <div id="app-container" class="hidden">
 
@@ -115,7 +136,7 @@
       <!-- Shown only for admins -->
       <div id="admin-welcome-card" class="page-card hidden">
         <div class="success-icon">✓</div>
-        <h1>Welcome, Admin!</h1>
+        <h1 id="admin-greeting" class="nickname-heading">Hi!</h1>
         <p class="user-email-display" id="user-email-display"></p>
         <div class="stats-grid">
           <div class="stat-card">
@@ -133,7 +154,7 @@
       <div id="user-map-section" class="hidden">
         <div class="map-welcome-card page-card">
           <div class="success-icon">✓</div>
-          <h1>You're in!</h1>
+          <h1 id="user-greeting" class="nickname-heading">Hi!</h1>
           <p class="user-email-display" id="user-email-map"></p>
           <p class="map-subtitle">Watch the country light up — state by state</p>
         </div>
