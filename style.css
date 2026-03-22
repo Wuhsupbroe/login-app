@@ -367,7 +367,7 @@ input:focus {
 }
 
 #map-container {
-  background: #06061a;
+  background: #03030f;
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   overflow: hidden;
