@@ -329,8 +329,8 @@ const WEST_TO_EAST_FIPS = [
 function getStateColor(index, total) {
   const t     = index / Math.max(total - 1, 1);
   const hue   = Math.round(15 + t * 255);          // 15=coral → 270=purple
-  const sat   = Math.round(78 + Math.sin(t * Math.PI) * 14);
-  const light = Math.round(55 + Math.sin(t * Math.PI * 0.8) * 8);
+  const sat   = 92;
+  const light = Math.round(68 + Math.sin(t * Math.PI) * 9); // 68–77% — vivid on dark bg
   return `hsl(${hue},${sat}%,${light}%)`;
 }
 
@@ -368,12 +368,12 @@ async function initUserMap() {
     // Ocean / background
     svg.append('rect')
       .attr('width', 960).attr('height', 600)
-      .attr('fill', '#06061a');
+      .attr('fill', '#03030f');
 
     // SVG glow filter
     const defs   = svg.append('defs');
     const filter = defs.append('filter').attr('id', 'state-glow').attr('x', '-20%').attr('y', '-20%').attr('width', '140%').attr('height', '140%');
-    filter.append('feGaussianBlur').attr('stdDeviation', '4').attr('result', 'blur');
+    filter.append('feGaussianBlur').attr('stdDeviation', '5').attr('result', 'blur');
     const merge  = filter.append('feMerge');
     merge.append('feMergeNode').attr('in', 'blur');
     merge.append('feMergeNode').attr('in', 'SourceGraphic');
@@ -381,7 +381,7 @@ async function initUserMap() {
     const pathGen  = d3.geoPath();
     const features = topojson.feature(us, us.objects.states).features;
 
-    // Base state fills (dark, unlit)
+    // Base state fills — visible dark slate so outline is apparent before animation
     svg.selectAll('.state')
       .data(features)
       .enter()
@@ -389,16 +389,16 @@ async function initUserMap() {
       .attr('class', 'state')
       .attr('d', pathGen)
       .attr('data-fips', d => d.id)
-      .attr('fill', '#0d0d28')
-      .attr('stroke', '#1a1a3e')
+      .attr('fill', '#1a1a40')
+      .attr('stroke', '#3a3a80')
       .attr('stroke-width', '0.8');
 
     // State borders mesh (thin, on top)
     svg.append('path')
       .datum(topojson.mesh(us, us.objects.states, (a, b) => a !== b))
       .attr('fill', 'none')
-      .attr('stroke', '#22224a')
-      .attr('stroke-width', '0.5');
+      .attr('stroke', '#44449a')
+      .attr('stroke-width', '0.6');
 
     startMapAnimation(svg, features, d3, token);
 
@@ -431,7 +431,7 @@ function startMapAnimation(svg, features, d3, token) {
 
   ordered.forEach((feature, i) => {
     const color      = getStateColor(i, total);
-    const flashColor = `hsl(${Math.round(15 + (i / total) * 255)},100%,85%)`;
+    const flashColor = `hsl(${Math.round(15 + (i / total) * 255)},100%,92%)`;
 
     setTimeout(() => {
       if (token.cancelled) return;
@@ -451,7 +451,7 @@ function startMapAnimation(svg, features, d3, token) {
     if (token.cancelled) return;
     svg.selectAll('.state')
       .transition().duration(1400).ease(d3.easeLinear)
-      .attr('fill', '#0d0d28');
+      .attr('fill', '#1a1a40');
     setTimeout(() => {
       if (!token.cancelled) startMapAnimation(svg, features, d3, token);
     }, 1600);
